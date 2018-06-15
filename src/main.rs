@@ -12,13 +12,26 @@ fn main(){
     socket.bind("tcp://*:6913").unwrap();
     
     loop{
-        let mut peticion = zmq::Message::new().unwrap();
-        socket.recv(&mut peticion,0).unwrap();
-        println!("recibí: {:?}", peticion.as_str().unwrap());
-        socket.send(listar_usuarios(1, 4).as_bytes(),0).unwrap();
+        let peticion = socket.recv_string(0).unwrap();
+        println!("recibí: {:?}", peticion);
+        let respuesta = match peticion{
+                Ok(cadena) => enrutar(cadena),
+                _ => String::from("Error")
+            };
+        socket.send(respuesta.as_bytes(), 0);
     }
 }     
 
+fn enrutar(peticion:String) -> String{
+    let cadenas:Vec<&str> = peticion.split(" ").collect();
+    let verbo = cadenas[0];
+    match verbo{
+        "listar_usuarios" =>
+            listar_usuarios(cadenas[1].parse().unwrap(),
+                cadenas[2].parse().unwrap()),
+        _ => String::from("Método no definido")
+    }
+}
 
 fn listar_usuarios(num_pag: i32, elem_por_pagina:i32) -> String{
     let cadena = String::from("postgres://logica_ludica:seguridad_777@localhost/lms_l_l");
