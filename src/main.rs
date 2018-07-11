@@ -48,6 +48,7 @@ fn enrutar(peticion:String) -> Result<String,String>{
             listar_usuarios(num_pag, item_por_pag)  
         },
         "insertar_usuario" => insertar_usuario(&peticion[16..]),
+        "loguear_usuario" => loguear_usuario(&peticion[15..]),
         _ => Err(String::from("Método no definido"))
     };
     match resultado{
@@ -65,11 +66,30 @@ fn listar_usuarios(num_pag: i32, elem_por_pagina:i32) -> Result<Value, String>{
     let respuesta_bd = match conexion.query("SELECT listar_usuarios($1, $2)",
         &[&num_pag,&elem_por_pagina]){
             Ok(r) => r,
-            Err(_) => return Err(String::from("No es posible realizar la operación"))
+            Err(error_bd) => return Err(error_bd.to_string())
 
         };
     let respuesta_json:Value = respuesta_bd.get(0).get(0);
     Ok(respuesta_json)
+}
+
+fn loguear_usuario(cadena_usuario: &str) -> Result<Value, String>{
+    let datos_usuario:Value = match serde_json::from_str(cadena_usuario){
+        Ok(valor) => valor,
+        Err(_) => return Err(String::from("Datos en JSON mal formateados"))
+    };
+    let cadena_conexion =
+        String::from("postgres://logica_ludica:seguridad_777@localhost/lms_l_l");
+    let conexion = match Connection::connect(cadena_conexion, TlsMode::None){
+        Ok(conn) => conn,
+        Err(_) => return Err(String::from("No es posible conectar a la Base de datos"))
+    };
+    let respuesta:String = match conexion.query("SELECT loguear_usuario($1)",
+        &[&datos_usuario]){
+            Ok(valor) => valor.get(0).get(0),
+            Err(error_bd) => return Err(error_bd.to_string())
+    };
+    Ok(json!(respuesta))
 }
 
 fn insertar_usuario(cadena_usuario: &str) -> Result<Value,String>{
@@ -85,7 +105,7 @@ fn insertar_usuario(cadena_usuario: &str) -> Result<Value,String>{
     };
     let respuesta:uuid::Uuid = match conexion.query("SELECT insert_usuario($1)", &[&usuario]){
         Ok(valor) => valor.get(0).get(0),
-        Err(_) => return Err(String::from("No es posible realizar la operación"))
+        Err(error_bd) => return Err(error_bd.to_string())
     };  
     Ok(json!(respuesta))
 }
